@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Record Access</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 100%;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+        }
+        .patient-info {
+            background: #e8f4fc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .study-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 15px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 5px 0;
+            text-align: center;
+        }
+        .hospital-badge {
+            background: #2ecc71;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🩻 Medical Records</h1>
+            <p>Secure Access to Your Medical Studies</p>
+        </div>
+
+        <div class="patient-info" id="patient-info">
+            Loading patient information...
+        </div>
+
+        <div id="studies-list">
+            <p>Loading medical studies...</p>
+        </div>
+    </div>
+
+    <script>
+        // Get patient ID from URL
+        const pathParts = window.location.pathname.split('/');
+        const patientId = pathParts[pathParts.length - 1];
+
+        async function loadPatientData() {
+            try {
+                // Load patient info
+                const patientResponse = await fetch(`/api/patients/${patientId}`);
+                const patient = await patientResponse.json();
+                
+                document.getElementById('patient-info').innerHTML = `
+                    <h3>${patient.first_name} ${patient.last_name}</h3>
+                    <p><strong>National ID:</strong> ${patient.national_id}</p>
+                    <p><strong>Date of Birth:</strong> ${patient.date_of_birth || 'Not specified'}</p>
+                    <p><strong>Phone:</strong> ${patient.phone || 'Not specified'}</p>
+                `;
+                
+                // Load studies across federation
+                const studiesResponse = await fetch(`/api/federation/query?patient_id=${patientId}`);
+                const federationData = await studiesResponse.json();
+                
+                const studiesContainer = document.getElementById('studies-list');
+                
+                if (federationData.studies.length === 0) {
+                    studiesContainer.innerHTML = '<p>No medical studies found.</p>';
+                    return;
+                }
+                
+                studiesContainer.innerHTML = `
+                    <h3>Medical Studies (${federationData.total_studies} studies)</h3>
+                    <p>Accessed from ${federationData.hospitals_accessed} hospitals</p>
+                `;
+                
+                federationData.studies.forEach(study => {
+                    const studyElement = document.createElement('div');
+                    studyElement.className = 'study-item';
+                    studyElement.innerHTML = `
+                        <h4>${study.description || 'Medical Study'}</h4>
+                        <p><strong>Hospital:</strong> ${study.hospital_name} <span class="hospital-badge">${study.hospital_id}</span></p>
+                        <p><strong>Date:</strong> ${new Date(study.study_date).toLocaleDateString()}</p>
+                        <p><strong>Type:</strong> ${study.modality}</p>
+                        <a href="/api/studies/${study.study_id}/qr" class="btn">Share This Study</a>
+                    `;
+                    studiesContainer.appendChild(studyElement);
+                });
+                
+            } catch (error) {
+                console.error('Error loading patient data:', error);
+                document.getElementById('patient-info').innerHTML = 
+                    '<p>Error loading patient information. Please check the patient ID.</p>';
+            }
+        }
+
+        // Load data when page loads
+        window.onload = loadPatientData;
+    </script>
+</body>
+</html>

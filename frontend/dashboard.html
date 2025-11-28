@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XRay Federation Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .qr-preview {
+            text-align: center;
+            padding: 20px;
+        }
+        .qr-preview img {
+            max-width: 200px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+        form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .grid-full {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 XRay Federation System</h1>
+            <p>Secure Medical Image Sharing Across Hospitals</p>
+        </div>
+
+        <div class="dashboard">
+            <div class="card">
+                <h2>System Status</h2>
+                <div id="system-status">
+                    <div class="status-item">
+                        <span>API Server:</span>
+                        <span id="api-status">Checking...</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Orthanc Server:</span>
+                        <span id="orthanc-status">Checking...</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Total Hospitals:</span>
+                        <span id="hospital-count">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Total Patients:</span>
+                        <span id="patient-count">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Quick Actions</h2>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button onclick="showPatientRegistration()" class="btn btn-primary">
+                        Register New Patient
+                    </button>
+                    <button onclick="showHospitalRegistration()" class="btn btn-primary">
+                        Register Hospital
+                    </button>
+                    <button onclick="loadRecentStudies()" class="btn btn-success">
+                        View Recent Studies
+                    </button>
+                    <a href="http://localhost:8042" target="_blank" class="btn">
+                        Open Orthanc Interface
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Patient Registration</h2>
+            <div id="patient-registration-form" style="display: none;">
+                <form id="patientForm">
+                    <div>
+                        <label>National ID:</label>
+                        <input type="text" id="national_id" required>
+                    </div>
+                    <div>
+                        <label>First Name:</label>
+                        <input type="text" id="first_name" required>
+                    </div>
+                    <div>
+                        <label>Last Name:</label>
+                        <input type="text" id="last_name" required>
+                    </div>
+                    <div>
+                        <label>Date of Birth:</label>
+                        <input type="date" id="date_of_birth">
+                    </div>
+                    <div>
+                        <label>Gender:</label>
+                        <select id="gender">
+                            <option value="M">Male</option>
+                            <option value="F">Female</option>
+                            <option value="O">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Phone:</label>
+                        <input type="text" id="phone">
+                    </div>
+                    <div class="grid-full">
+                        <button type="submit" class="btn btn-success">Register Patient</button>
+                        <button type="button" onclick="hidePatientRegistration()" class="btn">Cancel</button>
+                    </div>
+                </form>
+            </div>
+            <div id="patient-qr-result" class="qr-preview" style="display: none;">
+                <h3>Patient QR Code</h3>
+                <div id="qr-image-container"></div>
+                <p>Scan this QR code to access patient medical records</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Recent Studies</h2>
+            <div id="recent-studies">
+                <p>No studies loaded yet. Click "View Recent Studies" to load.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load system status on page load
+        window.onload = function() {
+            loadSystemStatus();
+        };
+
+        async function loadSystemStatus() {
+            try {
+                // Check API server
+                const apiResponse = await fetch('/api/status');
+                document.getElementById('api-status').textContent = 
+                    apiResponse.ok ? '✅ Running' : '❌ Down';
+                
+                // Check Orthanc server
+                try {
+                    const orthancResponse = await fetch('http://localhost:8042/system');
+                    document.getElementById('orthanc-status').textContent = 
+                        orthancResponse.ok ? '✅ Running' : '❌ Down';
+                } catch {
+                    document.getElementById('orthanc-status').textContent = '❌ Down';
+                }
+                
+                // Load counts
+                const hospitals = await fetch('/api/hospitals').then(r => r.json());
+                const patients = await fetch('/api/patients').then(r => r.json());
+                
+                document.getElementById('hospital-count').textContent = hospitals.length;
+                document.getElementById('patient-count').textContent = patients.length;
+                
+            } catch (error) {
+                console.error('Status check error:', error);
+                document.getElementById('api-status').textContent = '❌ Error';
+            }
+        }
+
+        function showPatientRegistration() {
+            document.getElementById('patient-registration-form').style.display = 'block';
+            document.getElementById('patient-qr-result').style.display = 'none';
+        }
+
+        function hidePatientRegistration() {
+            document.getElementById('patient-registration-form').style.display = 'none';
+        }
+
+        // Handle patient registration form
+        document.getElementById('patientForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                national_id: document.getElementById('national_id').value,
+                first_name: document.getElementById('first_name').value,
+                last_name: document.getElementById('last_name').value,
+                date_of_birth: document.getElementById('date_of_birth').value,
+                gender: document.getElementById('gender').value,
+                phone: document.getElementById('phone').value
+            };
+            
+            try {
+                const response = await fetch('/api/patients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`Patient registered successfully! ID: ${result.patient_id}`);
+                    
+                    // Generate and show QR code
+                    const qrResponse = await fetch(`/api/patients/${result.patient_id}/qr`);
+                    const qrBlob = await qrResponse.blob();
+                    const qrUrl = URL.createObjectURL(qrBlob);
+                    
+                    document.getElementById('qr-image-container').innerHTML = 
+                        `<img src="${qrUrl}" alt="Patient QR Code">`;
+                    document.getElementById('patient-qr-result').style.display = 'block';
+                    document.getElementById('patient-registration-form').style.display = 'none';
+                    
+                    // Reset form
+                    document.getElementById('patientForm').reset();
+                    
+                    // Refresh counts
+                    loadSystemStatus();
+                    
+                } else {
+                    const error = await response.json();
+                    alert('Registration failed: ' + JSON.stringify(error));
+                }
+            } catch (error) {
+                alert('Registration error: ' + error.message);
+            }
+        });
+
+        async function loadRecentStudies() {
+            try {
+                const hospitals = await fetch('/api/hospitals').then(r => r.json());
+                let allStudies = [];
+                
+                for (let hospital of hospitals) {
+                    const studies = await fetch(`/api/hospitals/${hospital.id}/studies`).then(r => r.json());
+                    allStudies = allStudies.concat(studies);
+                }
+                
+                // Sort by date (newest first) and take top 10
+                allStudies.sort((a, b) => new Date(b.study_date) - new Date(a.study_date));
+                const recentStudies = allStudies.slice(0, 10);
+                
+                const studiesContainer = document.getElementById('recent-studies');
+                
+                if (recentStudies.length === 0) {
+                    studiesContainer.innerHTML = '<p>No studies found. Register hospitals and studies first.</p>';
+                    return;
+                }
+                
+                studiesContainer.innerHTML = recentStudies.map(study => `
+                    <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px;">
+                        <h4>${study.description || 'Unnamed Study'}</h4>
+                        <p><strong>Patient:</strong> ${study.patient_name} (${study.national_id})</p>
+                        <p><strong>Hospital:</strong> ${study.hospital_id}</p>
+                        <p><strong>Date:</strong> ${new Date(study.study_date).toLocaleDateString()}</p>
+                        <p><strong>Modality:</strong> ${study.modality}</p>
+                        <a href="/api/studies/${study.id}/qr" target="_blank" class="btn btn-primary">
+                            Generate Study QR
+                        </a>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading studies:', error);
+                document.getElementById('recent-studies').innerHTML = 
+                    '<p>Error loading studies. Make sure you have registered hospitals and studies.</p>';
+            }
+        }
+
+        function showHospitalRegistration() {
+            const hospitalId = prompt('Enter Hospital ID (e.g., HOS-002):');
+            const hospitalName = prompt('Enter Hospital Name:');
+            
+            if (hospitalId && hospitalName) {
+                fetch('/api/hospitals', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: hospitalId,
+                        name: hospitalName,
+                        address: prompt('Address (optional):') || '',
+                        phone: prompt('Phone (optional):') || '',
+                        email: prompt('Email (optional):') || ''
+                    })
+                })
+                .then(response => response.json())
+                .then(result => {
+                    alert('Hospital registered successfully!');
+                    loadSystemStatus();
+                })
+                .catch(error => {
+                    alert('Hospital registration failed: ' + error.message);
+                });
+            }
+        }
+    </script>
+</body>
+</html>

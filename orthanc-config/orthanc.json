@@ -1,0 +1,14 @@
+{
+  "Name": "XRay-Federation-Orthanc",
+  "StorageDirectory": "./orthanc-storage",
+  "IndexDirectory": "./orthanc-index",
+  "DicomPort": 4242,
+  "HttpPort": 8042,
+  "AuthenticationEnabled": false,
+  "DicomAet": "XRAYFEDERATION",
+  "RemoteAccessAllowed": true,
+  "Verbose": true,
+  "HttpsVerifyPeers": false,
+  "OrthancPeers": {},
+  "Plugins": []
+}
