@@ -405,6 +405,69 @@ def dashboard():
 def serve_frontend(path):
     return send_from_directory('../frontend', path)
 
+@app.route('/api/admin/reset-demo', methods=['POST'])
+def reset_demo():
+    """Admin endpoint to safely re-run demo data creation (idempotent)"""
+    try:
+        conn = sqlite3.connect('federation.db')
+        cursor = conn.cursor()
+        
+        # Create hospitals (skip if exist)
+        hospitals = [
+            ("HOS-001", "Central General Hospital", "123 Main St"),
+            ("HOS-002", "City Medical Center", "456 Health Ave"),
+            ("HOS-003", "Regional Hospital", "789 Care Road")
+        ]
+        
+        for h_id, name, addr in hospitals:
+            try:
+                cursor.execute('INSERT INTO hospitals (id, name, address) VALUES (?, ?, ?)', (h_id, name, addr))
+            except sqlite3.IntegrityError:
+                pass  # Hospital exists
+        
+        # Create patients (skip if exist)
+        patients = [
+            ("PAT-901234", "199012345678901234", "John", "Doe", "1990-05-15", "M"),
+            ("PAT-556677", "198511223344556677", "Mary", "Smith", "1985-11-22", "F"),
+            ("PAT-554433", "197808997766554433", "Robert", "Johnson", "1978-08-09", "M")
+        ]
+        
+        for p_id, nat_id, fname, lname, dob, gender in patients:
+            try:
+                cursor.execute(
+                    'INSERT INTO patients (id, national_id, first_name, last_name, date_of_birth, gender) VALUES (?, ?, ?, ?, ?, ?)',
+                    (p_id, nat_id, fname, lname, dob, gender)
+                )
+            except sqlite3.IntegrityError:
+                pass  # Patient exists
+        
+        # Create studies (always new with unique IDs)
+        studies = [
+            ("PAT-901234", "HOS-001", "2024-01-15 10:30:00", "XR", "Chest X-Ray"),
+            ("PAT-901234", "HOS-002", "2024-01-20 14:15:00", "CT", "Head CT Scan"),
+            ("PAT-556677", "HOS-003", "2024-01-18 09:45:00", "US", "Abdominal Ultrasound"),
+            ("PAT-554433", "HOS-001", "2024-01-22 11:20:00", "XR", "Spine X-Ray")
+        ]
+        
+        for p_id, h_id, study_date, modality, desc in studies:
+            study_id = f"STU-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:8]}"
+            cursor.execute(
+                'INSERT INTO studies (id, patient_id, hospital_id, study_date, modality, description) VALUES (?, ?, ?, ?, ?, ?)',
+                (study_id, p_id, h_id, study_date, modality, desc)
+            )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            "message": "Demo data reset successfully",
+            "hospitals": len(hospitals),
+            "patients": len(patients),
+            "studies": len(studies)
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     # Initialize database on first run
     if not os.path.exists('federation.db'):
