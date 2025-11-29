@@ -19,7 +19,20 @@ def create_demo_data():
             {"id": "HOS-003", "name": "Regional Hospital", "address": "789 Care Road"}
         ]
         
+        # Fetch existing hospitals and skip duplicates
+        existing_resp = client.get('/api/hospitals')
+        existing_ids = set()
+        if existing_resp.status_code == 200:
+            try:
+                for h in existing_resp.json:
+                    existing_ids.add(h.get('id'))
+            except Exception:
+                pass
+
         for hospital in hospitals:
+            if hospital['id'] in existing_ids:
+                print(f"Skipping existing hospital: {hospital['name']} - {hospital['id']}")
+                continue
             response = client.post('/api/hospitals', json=hospital)
             print(f"Created hospital: {hospital['name']} - {response.status_code}")
         
@@ -31,12 +44,30 @@ def create_demo_data():
         ]
         
         patient_ids = []
+        # Fetch existing patients to avoid duplicates
+        existing_patients_resp = client.get('/api/patients')
+        existing_by_national = {}
+        if existing_patients_resp.status_code == 200:
+            try:
+                for p in existing_patients_resp.json:
+                    existing_by_national[p.get('national_id')] = p.get('id')
+            except Exception:
+                pass
+
         for patient in patients:
+            if patient['national_id'] in existing_by_national:
+                pid = existing_by_national[patient['national_id']]
+                patient_ids.append(pid)
+                print(f"Skipping existing patient: {patient['first_name']} {patient['last_name']} - {pid}")
+                continue
+
             response = client.post('/api/patients', json=patient)
             if response.status_code == 201:
-                patient_id = response.json['patient_id']
+                patient_id = response.json.get('patient_id')
                 patient_ids.append(patient_id)
                 print(f"Created patient: {patient['first_name']} {patient['last_name']} - {patient_id}")
+            else:
+                print(f"Failed creating patient {patient.get('first_name')} {patient.get('last_name')}: {response.status_code}")
         
         # Create studies
         studies = [
@@ -49,11 +80,27 @@ def create_demo_data():
         # Distribute studies across hospitals
         hospital_ids = ["HOS-001", "HOS-002", "HOS-003"]
         
-        for i, study in enumerate(studies):
-            hospital_id = hospital_ids[i % len(hospital_ids)]
-            response = client.post(f'/api/hospitals/{hospital_id}/studies', json=study)
-            if response.status_code == 201:
-                print(f"Created study at {hospital_id}: {study['description']}")
+        if len(patient_ids) == 0:
+            print("No patients available; skipping study creation.")
+        else:
+            for i, study in enumerate(studies):
+                if i >= len(patient_ids) and 'patient_id' in study and study['patient_id'] is None:
+                    # skip if we don't have enough patients
+                    continue
+                # ensure study references an available patient
+                study_patient_id = study.get('patient_id') or patient_ids[i % len(patient_ids)]
+                body = {
+                    'patient_id': study_patient_id,
+                    'study_date': study.get('study_date'),
+                    'modality': study.get('modality'),
+                    'description': study.get('description')
+                }
+                hospital_id = hospital_ids[i % len(hospital_ids)]
+                response = client.post(f'/api/hospitals/{hospital_id}/studies', json=body)
+                if response.status_code == 201:
+                    print(f"Created study at {hospital_id}: {study['description']}")
+                else:
+                    print(f"Failed creating study at {hospital_id}: {response.status_code}")
         
         print("\n✅ Demo data created successfully!")
         print(f"\nTo access the system:")

@@ -7,6 +7,7 @@ from flask_cors import CORS
 import sqlite3
 import os
 from datetime import datetime
+import uuid
 import qrcode
 import io
 
@@ -213,8 +214,8 @@ def hospital_studies(hospital_id):
     if request.method == 'POST':
         data = request.json
         
-        # Generate study ID
-        study_id = f"STU-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        # Generate study ID with a short UUID suffix to ensure uniqueness
+        study_id = f"STU-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:8]}"
         
         cursor.execute('''
             INSERT INTO studies (id, patient_id, hospital_id, study_date, modality, description, orthanc_study_id)
